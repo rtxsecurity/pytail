@@ -10,6 +10,31 @@ parser = argparse.ArgumentParser(
 parser.add_argument('filename')          
 args = parser.parse_args()
 
+class filter:
+    def __init__(self, match):
+        self.combine = False
+        self.matches = []
+        self.matches.append(match)
+        return
+    
+    def add_match(self, match):
+        self.matches.append(match)
+        return
+    
+    def combine_enable(self):
+        self.combine = True
+        return
+    
+    def combine_disable(self):
+        self.combine = False
+        return
+    
+    def suppress(self, input):
+        for match in self.matches:
+            if re.search(match, input):
+                return True
+        return False
+
 class pattern:
     def __init__(self, match, fg, bg, attr):
         self.fg=fg
@@ -26,22 +51,28 @@ class pattern:
         message = f'{fg}{bg}{attr}{input}{reset}'
         return message
 
-def logp(line, patternlist):
-    for pattern in patternlist:
-        if re.search(pattern.rexp,line): 
-            print(pattern.color(line))
-            break
-        else:
-            print(line)
-    return
+def logp(line, patternlist, filterlist):
 
-def monitor(filename,patternlist):
+    for filter in filterlist:
+        if filter.suppress(line):
+            message = ''
+            break
+        else:       
+            for pattern in patternlist:
+                if re.search(pattern.rexp,line): 
+                    message = pattern.color(line)
+                    break
+                else:
+                    message = line
+    return message
+
+def monitor(filename,patternlist,filterlist):
     fileh = open(filename, 'r')
     discard = fileh.readlines()
     while True:
         new = fileh.readlines()
         if new:
-            logp(new[0].rstrip(),patternlist)
+            print("%s" % logp(new[0].rstrip(),patternlist,filterlist))
         else:
             pass
         time.sleep(1)
@@ -49,4 +80,6 @@ def monitor(filename,patternlist):
 
 patterns = []
 patterns.append(pattern('CDT', 'white', 'blue', 'bold'))
-monitor(args.filename,patterns)
+filters = []
+filters.append(filter('DO NOT PRINT'))
+monitor(args.filename,patterns,filters)
